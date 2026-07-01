@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>syrchat - منصة الدردشة</title>
+    
+    <!-- إعدادات استيراد Firebase -->
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+                "firebase/analytics": "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+            }
+        }
+    </script>
+
+    <style>
+        /* === التنسيق العام === */
+        body { font-family: Tahoma, Verdana, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        * { box-sizing: border-box; }
+
+        /* === النوافذ المنبثقة (Modal) === */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 999; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: #fff; border-radius: 8px; width: 90%; max-width: 400px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; }
+        .modal-header { font-weight: bold; font-size: 18px; color: #0f3b82; margin-bottom: 15px; text-align: center; }
+        
+        /* === التنسيق الرئيسي للتطبيق === */
+        #app-container { width: 100%; height: 100%; max-width: 1000px; background: #fff; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15); overflow: hidden; }
+
+        /* === شاشة الـ Lobby (الصالة) === */
+        #lobby-screen { display: none; flex: 1; flex-direction: row; overflow: hidden; background: #f8f9fa; }
+        #lobby-screen.active { display: flex; }
+        #sidebar { width: 280px; background: #e9f2fb; border-left: 1px solid #9ecad8; padding: 15px; display: flex; flex-direction: column; overflow-y: auto; }
+        #main-lobby { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .lobby-title { font-size: 22px; font-weight: bold; color: #0f3b82; margin-bottom: 10px; }
+        .lobby-welcome { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #c3e6cb; }
+
+        /* === أزرار الغرف === */
+        .room-list { display: flex; flex-direction: column; gap: 5px; }
+        .room-item { padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; }
+        .room-item:hover { background: #f1f1f1; }
+        .btn-primary { background: #0f3b82; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+
+        /* === شاشة الدردشة === */
+        #chat-screen { display: none; flex: 1; flex-direction: column; background: #fff; }
+        #chat-screen.active { display: flex; }
+        #chat-header { background: #0f3b82; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg-box { padding: 8px 12px; border-radius: 12px; max-width: 75%; background: #e9f2fb; align-self: flex-start; word-wrap: break-word; }
+        .msg-box.me { background: #d1e7dd; align-self: flex-end; }
+        .msg-user { font-size: 11px; font-weight: bold; color: #0f3b82; display: block; cursor: pointer; }
+        .msg-user:hover { text-decoration: underline; }
+        #chat-input-area { padding: 10px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+
+        /* === نماذج الإدخال === */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #333; }
+        .form-control { width: 100%; padding: 8px; border: 1px solid #86a4be; border-radius: 4px; outline: none; }
+        .form-control:focus { border-color: #0f3b82; }
+        select.form-control { appearance: auto; }
+        .error-msg { color: #dc3545; font-size: 12px; margin-top: 5px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 1. نافذة تسجيل الدخول (Modal) ===== -->
+    <div id="auth-modal" class="modal-overlay active">
+        <div class="modal-box">
+            <div class="modal-header">syrchat - تسجيل الدخول</div>
+            <div class="form-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="email" class="form-control" placeholder="example@email.com">
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="password" class="form-control" placeholder="********">
+            </div>
+            <div id="auth-fields" style="display:none;">
+                <div class="form-group">
+                    <label>اسم المستخدم (NickName)</label>
+                    <input type="text" id="username" class="form-control" placeholder="اسمك في الدردشة">
+                </div>
+                <div class="form-group">
+                    <label>الجنس</label>
+                    <select id="gender" class="form-control">
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="btn-login" class="btn-primary" style="flex:1;">دخول</button>
+                <button id="btn-register" class="btn-primary" style="flex:1; background:#28a745;">إنشاء حساب</button>
+            </div>
+            <div id="auth-error" class="error-msg"></div>
+        </div>
+    </div>
+
+    <!-- ===== 2. واجهة التطبيق الرئيسية ===== -->
+    <div id="app-container">
+        
+        <!-- === شاشة اللوبي (Lobby) === -->
+        <div id="lobby-screen" class="active">
+            <div id="sidebar">
+                <div style="font-weight:bold; margin-bottom:10px;">الغرف العامة</div>
+                <div class="room-list" id="public-rooms"></div>
+                <div style="font-weight:bold; margin:20px 0 10px 0;">الغرف الخاصة</div>
+                <div class="room-list" id="private-rooms"></div>
+                <button id="btn-create-room" class="btn-primary" style="margin-top:auto;">+ إنشاء غرفة جديدة</button>
+            </div>
+            
+            <div id="main-lobby">
+                <div class="lobby-title">مرحباً بك في صالة syrchat</div>
+                <div class="lobby-welcome" id="welcome-msg">شكراً لانضمامك! يرجى اختيار غرفة من القائمة الجانبية للبدء.</div>
+                
+                <div style="flex:1; background:#fff; border:1px solid #ddd; border-radius:5px; padding:15px; overflow-y:auto;">
+                    <p style="color:#777; text-align:center;">هنا سيظهر إشعارات النظام والرسائل الواردة.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- === شاشة الدردشة (Chat Room) === -->
+        <div id="chat-screen">
+            <div id="chat-header">
+                <div id="room-name">الغرفة العامة</div>
+                <button id="btn-back-lobby" class="btn-primary" style="background:#6c757d;">عودة للصالة</button>
+            </div>
+            <div id="chat-messages"></div>
+            <div id="chat-input-area">
+                <input type="text" id="message-input" class="form-control" placeholder="اكتب رسالتك هنا...">
+                <button id="btn-send" class="btn-primary">إرسال</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 1. استيراد مكتبات Firebase
+        import { initializeApp } from "firebase/app";
+        import { getAnalytics } from "firebase/analytics";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, where } from "firebase/firestore";
+
+        // 2. إعداد Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD72ZLpPd2zWLqKjgW0t0nGbkKxcLBpl9Q",
+            authDomain: "syrchat-app.firebaseapp.com",
+            projectId: "syrchat-app",
+            storageBucket: "syrchat-app.firebasestorage.app",
+            messagingSenderId: "59613720320",
+            appId: "1:59613720320:web:07bdbb89ab94c7a42c4de5",
+            measurementId: "G-H207P3H9VM"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 3. عناصر DOM
+        const authModal = document.getElementById('auth-modal');
+        const authFields = document.getElementById('auth-fields');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const usernameInput = document.getElementById('username');
+        const genderInput = document.getElementById('gender');
+        const authError = document.getElementById('auth-error');
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegister = document.getElementById('btn-register');
+
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const roomNameHeader = document.getElementById('room-name');
+        const welcomeMsg = document.getElementById('welcome-msg');
+
+        const publicRoomsList = document.getElementById('public-rooms');
+        const privateRoomsList = document.getElementById('private-rooms');
+        const btnCreateRoom = document.getElementById('btn-create-room');
+        const btnBackLobby = document.getElementById('btn-back-lobby');
+
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const btnSend = document.getElementById('btn-send');
+
+        // 4. دوال المصادقة
+        const showError = (msg) => { authError.textContent = msg; setTimeout(() => authError.textContent = '', 3000); };
+
+        // التبديل بين وضع تسجيل الدخول وإنشاء الحساب
+        let isRegistering = false;
+        btnRegister.addEventListener('click', () => {
+            isRegistering = true;
+            authFields.style.display = 'block';
+            btnLogin.style.display = 'none';
+            btnRegister.textContent = 'تأكيد التسجيل';
+        });
+        btnLogin.addEventListener('click', () => {
+            isRegistering = false;
+            authFields.style.display = 'none';
+            btnLogin.style.display = 'block';
+            btnRegister.textContent = 'إنشاء حساب';
+        });
+
+        // معالجة الضغط على الأزرار
+        async function handleAuth() {
+            const email = emailInput.value.trim();
+            const pass = passwordInput.value.trim();
+            if(!email || !pass) return showError('يرجى ملء البريد وكلمة المرور');
+
+            try {
+                if(isRegistering) {
+                    const user = (await createUserWithEmailAndPassword(auth, email, pass)).user;
+                    // تخزين البيانات في Firestore
+                    await setDoc(doc(db, "users", user.uid), {
+                        email: email,
+                        username: usernameInput.value.trim() || 'مستخدم',
+                        gender: genderInput.value,
+                        role: "user",
+                        createdAt: serverTimestamp()
+                    });
+                    alert('تم إنشاء الحساب بنجاح! مرحباً بك في syrchat.');
+                    authFields.style.display = 'none';
+                    isRegistering = false;
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        btnLogin.addEventListener('click', handleAuth);
+        btnRegister.addEventListener('click', handleAuth);
+
+        // 5. حالة المستخدم واللوبي
+        let currentUser = null;
+        let currentUserData = null;
+        let currentRoomId = null;
+        let unsubscribeMessages = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                authModal.classList.remove('active');
+                lobbyScreen.classList.add('active');
+                
+                // جلب بيانات المستخدم
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists()) {
+                    currentUserData = docSnap.data();
+                    welcomeMsg.innerHTML = `🎉 مرحباً بك يا <strong>${currentUserData.username}</strong>! (الجنس: ${currentUserData.gender === 'male' ? 'ذكر' : 'أنثى'})`;
+                }
+                loadRooms();
+            } else {
+                currentUser = null; currentUserData = null;
+                authModal.classList.add('active');
+                lobbyScreen.classList.remove('active');
+                chatScreen.classList.remove('active');
+                if(unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
+            }
+        });
+
+        // 6. نظام الغرف
+        async function loadRooms() {
+            // تحميل الغرف العامة
+            const qPublic = query(collection(db, "rooms"), where("type", "==", "public"));
+            onSnapshot(qPublic, (snapshot) => {
+                publicRoomsList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const room = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'room-item';
+                    div.innerHTML = `<span>${room.name}</span> <span style="font-size:10px;color:#888;">${room.memberCount || 0} عضو</span>`;
+                    div.onclick = () => joinRoom(doc.id, room.name);
+                    publicRoomsList.appendChild(div);
+                });
+            });
+            // تحميل الغرف الخاصة (مبدئياً)
+            // ...
+        }
+
+        btnCreateRoom.onclick = () => {
+            const name = prompt('أدخل اسم الغرفة الجديدة:');
+            if(name) {
+                addDoc(collection(db, "rooms"), { name: name, type: "public", createdBy: currentUser.uid, createdAt: serverTimestamp() });
+            }
+        };
+
+        // 7. الدخول للغرفة
+        function joinRoom(roomId, roomName) {
+            if(unsubscribeMessages) unsubscribeMessages();
+            currentRoomId = roomId;
+            
+            lobbyScreen.classList.remove('active');
+            chatScreen.classList.add('active');
+            roomNameHeader.textContent = roomName;
+
+            const q = query(collection(db, "rooms", roomId, "messages"), orderBy("timestamp", "asc"));
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                chatMessages.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'msg-box' + (data.userId === currentUser?.uid ? ' me' : '');
+                    div.innerHTML = `
+                        <span class="msg-user" onclick="alert('معلومات المستخدم: ${data.username || 'زائر'}')">${data.username || 'زائر'}</span>
+                        <span>${data.text}</span>
+                        <span style="font-size:10px;color:#888;float:left;">${data.timestamp ? new Date(data.timestamp.toMillis()).toLocaleTimeString() : ''}</span>
+                    `;
+                    chatMessages.appendChild(div);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+        }
+
+        btnBackLobby.onclick = () => {
+            if(unsubscribeMessages) unsubscribeMessages();
+            chatScreen.classList.remove('active');
+            lobbyScreen.classList.add('active');
+        };
+
+        // 8. إرسال الرسائل
+        btnSend.onclick = sendMessage;
+        messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if(!text || !currentRoomId) return;
+            await addDoc(collection(db, "rooms", currentRoomId, "messages"), {
+                text, userId: currentUser.uid, username: currentUserData?.username || 'مستخدم', timestamp: serverTimestamp()
+            });
+            messageInput.value = '';
+        }
+    </script>
+</body>
+</html>
