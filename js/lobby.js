@@ -1,6 +1,6 @@
 import { currentUser, currentUserData } from "./auth.js";
 import { db } from "./firebase-config.js";
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, getDocs, orderBy } from "firebase/firestore";
 
 const publicRoomsList = document.getElementById('public-rooms');
 const btnCreateRoom = document.getElementById('btn-create-room');
@@ -65,7 +65,7 @@ async function joinRoom(roomId, roomName) {
     document.getElementById('chat-header-title').textContent = `🎤 ${roomName}`;
 
     // Create notification
-    if (currentUserData) {
+    if (currentUser && currentUserData) {
         await addDoc(collection(db, 'notifications'), {
             userId: currentUser.uid,
             username: currentUserData.username,
@@ -81,7 +81,7 @@ async function joinRoom(roomId, roomName) {
 
 btnCreateRoom.onclick = () => {
     const name = prompt('اسم الغرفة الجديدة:');
-    if (name) {
+    if (name && currentUser) {
         addDoc(collection(db, 'rooms'), {
             name,
             type: 'public',
