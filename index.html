@@ -19,17 +19,18 @@
 
     <style>
         /* === التنسيق العام === */
-        body { font-family: Tahoma, Verdana, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        html,body { height: 100%; }
+        body { font-family: Tahoma, Verdana, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; }
         * { box-sizing: border-box; }
 
         /* === النوافذ المنبثقة (Modal) === */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 999; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
         .modal-overlay.active { display: flex; }
         .modal-box { background: #fff; border-radius: 8px; width: 90%; max-width: 400px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; }
         .modal-header { font-weight: bold; font-size: 18px; color: #0f3b82; margin-bottom: 15px; text-align: center; }
         
         /* === التنسيق الرئيسي للتطبيق === */
-        #app-container { width: 100%; height: 100%; max-width: 1000px; background: #fff; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15); overflow: hidden; }
+        #app-container { width: 100%; height: 100%; max-width: 1000px; background: #fff; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15); overflow: hidden; position: relative; }
 
         /* === شاشة الـ Lobby (الصالة) === */
         #lobby-screen { display: none; flex: 1; flex-direction: row; overflow: hidden; background: #f8f9fa; }
@@ -46,15 +47,27 @@
         .btn-primary { background: #0f3b82; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; }
 
         /* === شاشة الدردشة === */
-        #chat-screen { display: none; flex: 1; flex-direction: column; background: #fff; }
+        /* الآن تأخذ كامل الشاشة */
+        #chat-screen { display: none; position: fixed; inset: 0; background: #fff; z-index: 800; flex-direction: column; }
         #chat-screen.active { display: flex; }
-        #chat-header { background: #0f3b82; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+        /* الشريط العلوي المنبثق */
+        #topbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(255,255,255,0.98); display: flex; align-items: center; justify-content: space-around; box-shadow: 0 6px 18px rgba(0,0,0,0.12); transform: translateY(-120%); transition: transform 260ms ease; z-index: 900;
+        }
+        #topbar.show { transform: translateY(0); }
+        .topbar-btn { background: transparent; border: none; display: flex; flex-direction: column; align-items:center; gap:4px; cursor: pointer; color: #0f3b82; }
+        .topbar-btn svg { width:26px; height:26px; fill: #0f3b82; }
+        .topbar-label { font-size:11px; color:#0f3b82; }
+
+        #chat-header { background: #0f3b82; color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 850; }
+        #chat-messages { flex: 1; padding: 80px 15px 15px 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(#ffffff, #f7fbff); }
         .msg-box { padding: 8px 12px; border-radius: 12px; max-width: 75%; background: #e9f2fb; align-self: flex-start; word-wrap: break-word; }
         .msg-box.me { background: #d1e7dd; align-self: flex-end; }
         .msg-user { font-size: 11px; font-weight: bold; color: #0f3b82; display: block; cursor: pointer; }
         .msg-user:hover { text-decoration: underline; }
         #chat-input-area { padding: 10px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        #chat-input-area .form-control { flex: 1; }
 
         /* === نماذج الإدخال === */
         .form-group { margin-bottom: 12px; }
@@ -63,6 +76,14 @@
         .form-control:focus { border-color: #0f3b82; }
         select.form-control { appearance: auto; }
         .error-msg { color: #dc3545; font-size: 12px; margin-top: 5px; text-align: center; }
+
+        /* small screen tweaks */
+        @media (max-width: 600px) {
+            #sidebar { display: none; }
+            #app-container { max-width: 100%; }
+            #topbar { height: 60px; }
+            .topbar-btn svg { width:22px; height:22px; }
+        }
     </style>
 </head>
 <body>
@@ -125,12 +146,43 @@
 
         <!-- === شاشة الدردشة (Chat Room) === -->
         <div id="chat-screen">
+
+            <!-- الشريط العلوي المنسدل (يظهر عند السحب من أعلى) -->
+            <div id="topbar" aria-hidden="true">
+                <button class="topbar-btn" id="btn-nav-rooms" title="الغرف">
+                    <!-- SVG: Rooms -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zM13 21h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                    <span class="topbar-label">الغرف</span>
+                </button>
+                <button class="topbar-btn" id="btn-contacts" title="جهات الاتصال">
+                    <!-- SVG: Contacts -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C13 14.17 8.33 13 6 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    <span class="topbar-label">جهات</span>
+                </button>
+                <button class="topbar-btn" id="btn-wallet" title="المحفظة">
+                    <!-- SVG: Wallet -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 7H7V5c0-1.1.9-2 2-2h10v4zM3 7v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2z"/></svg>
+                    <span class="topbar-label">المحفظة</span>
+                </button>
+                <button class="topbar-btn" id="btn-settings" title="الإعدادات">
+                    <!-- SVG: Settings -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.007 7.007 0 0 0-1.6-.94l-.36-2.54A.5.5 0 0 0 13 2h-3a.5.5 0 0 0-.5.42l-.36 2.54c-.56.23-1.09.53-1.6.94l-2.39-.96a.5.5 0 0 0-.6.22L2.72 8.9a.5.5 0 0 0 .12.64L4.87 11.2c-.04.31-.06.63-.06.94s.02.63.06.94L2.81 14.66a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.22l2.39-.96c.51.41 1.04.72 1.6.94l.36 2.54c.05.27.28.46.5.46h3c.22 0 .45-.19.5-.46l.36-2.54c.56-.23 1.09-.53 1.6-.94l2.39.96c.25.1.54 0 .68-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+                    <span class="topbar-label">الإعدادات</span>
+                </button>
+                <button class="topbar-btn" id="btn-profile" title="الملف">
+                    <!-- SVG: Profile -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.2c-3.3 0-9.9 1.7-9.9 5v2.7h19.8V19.2c0-3.3-6.6-5-9.9-5z"/></svg>
+                    <span class="topbar-label">الملف</span>
+                </button>
+            </div>
+
             <div id="chat-header">
                 <div id="room-name">الغرفة العامة</div>
-                <div style="display:flex; gap:8px; align-items:center;">
+                <div style="display:flex; gap:8px; align-items:center;" aria-hidden="true">
                     <button id="btn-back-lobby" class="btn-primary" style="background:#6c757d;">عودة للصالة</button>
                 </div>
             </div>
+
             <div id="chat-messages"></div>
             <div id="chat-input-area">
                 <input type="text" id="message-input" class="form-control" placeholder="اكتب رسالتك هنا...">
@@ -143,7 +195,7 @@
         // 1. استيراد مكتبات Firebase
         import { initializeApp } from "firebase/app";
         import { getAnalytics } from "firebase/analytics";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, fetchSignInMethodsForEmail } from "firebase/auth";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, where } from "firebase/firestore";
 
         // 2. إعداد Firebase
@@ -187,6 +239,13 @@
         const messageInput = document.getElementById('message-input');
         const btnSend = document.getElementById('btn-send');
 
+        const topbar = document.getElementById('topbar');
+        const btnNavRooms = document.getElementById('btn-nav-rooms');
+        const btnContacts = document.getElementById('btn-contacts');
+        const btnWallet = document.getElementById('btn-wallet');
+        const btnSettings = document.getElementById('btn-settings');
+        const btnProfile = document.getElementById('btn-profile');
+
         // 4. دوال المصادقة
         const showError = (msg) => { authError.textContent = msg; setTimeout(() => authError.textContent = '', 3000); };
 
@@ -229,7 +288,22 @@
                     await signInWithEmailAndPassword(auth, email, pass);
                 }
             } catch (error) {
-                showError(error.message);
+                // تعامل مع رموز الأخطاء الشائعة لFirebase
+                const code = error.code || '';
+                if (code === 'auth/email-already-in-use') {
+                    showError('هذا البريد مستخدم مسبقاً. حاول تسجيل الدخول أو استعادة كلمة المرور.');
+                } else if (code === 'auth/invalid-email') {
+                    showError('البريد الإلكتروني غير صحيح.');
+                } else if (code === 'auth/weak-password') {
+                    showError('كلمة المرور ضعيفة.');
+                } else if (code === 'auth/wrong-password') {
+                    showError('كلمة المرور خاطئة.');
+                } else if (code === 'auth/user-not-found') {
+                    showError('لم يوجد مستخدم بهذا البريد.');
+                } else {
+                    showError(error.message || 'حدث خطأ غير متوقع');
+                    console.error(error);
+                }
             }
         }
         btnLogin.addEventListener('click', handleAuth);
@@ -244,24 +318,96 @@
         // متغير لمنع الإرسال السريع (مضاد سبام بسيط)
         let lastMessageTime = 0;
 
+        // متغيرات الشريط العلوي - إخفاء تلقائي
+        let topbarHideTimeout = null;
+
+        function showTopbar() {
+            if (!topbar) return;
+            topbar.classList.add('show');
+            if (topbarHideTimeout) clearTimeout(topbarHideTimeout);
+            topbarHideTimeout = setTimeout(() => { hideTopbar(); }, 3000);
+        }
+        function hideTopbar() {
+            if (!topbar) return;
+            topbar.classList.remove('show');
+            if (topbarHideTimeout) { clearTimeout(topbarHideTimeout); topbarHideTimeout = null; }
+        }
+
+        // استماع للحركات (سحب من أعلى الشاشة)
+        let touchStartY = null;
+        let touchActive = false;
+
+        function onTouchStart(e) {
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            touchStartY = y;
+            // نبدأ فقط لو السحب من أعلى 50px
+            if (y <= 60) touchActive = true;
+        }
+        function onTouchMove(e) {
+            if (!touchActive || touchStartY === null) return;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            const delta = y - touchStartY;
+            if (delta > 30) { // سحب لأسفل
+                showTopbar();
+                touchActive = false;
+                touchStartY = null;
+            }
+        }
+        function onTouchEnd(e) {
+            touchActive = false; touchStartY = null;
+        }
+
+        function attachSwipeListeners() {
+            // دعم اللمس والماوس (للمحاكاة على سطح المكتب)
+            window.addEventListener('touchstart', onTouchStart);
+            window.addEventListener('touchmove', onTouchMove);
+            window.addEventListener('touchend', onTouchEnd);
+
+            // ماوس
+            window.addEventListener('mousedown', (ev) => {
+                if (ev.clientY <= 60) { touchActive = true; touchStartY = ev.clientY; }
+            });
+            window.addEventListener('mousemove', (ev) => {
+                if (!touchActive || touchStartY === null) return;
+                const delta = ev.clientY - touchStartY;
+                if (delta > 30) { showTopbar(); touchActive = false; touchStartY = null; }
+            });
+            window.addEventListener('mouseup', onTouchEnd);
+        }
+
+        function detachSwipeListeners() {
+            window.removeEventListener('touchstart', onTouchStart);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('touchend', onTouchEnd);
+            window.removeEventListener('mousedown', null);
+            window.removeEventListener('mousemove', null);
+            window.removeEventListener('mouseup', null);
+        }
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
                 authModal.classList.remove('active');
                 lobbyScreen.classList.add('active');
+                // attach swipe listeners so topbar can be pulled after تسجيل الدخول
+                attachSwipeListeners();
                 
                 // جلب بيانات المستخدم
-                const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) {
-                    currentUserData = docSnap.data();
-                    welcomeMsg.innerHTML = `🎉 مرحباً بك يا <strong>${currentUserData.username}</strong>! (الجنس: ${currentUserData.gender === 'male' ? 'ذكر' : 'أنثى'})`;
-                }
+                try {
+                    const docSnap = await getDoc(doc(db, "users", user.uid));
+                    if (docSnap.exists()) {
+                        currentUserData = docSnap.data();
+                        welcomeMsg.innerHTML = `🎉 مرحباً بك يا <strong>${currentUserData.username}</strong>! (الجنس: ${currentUserData.gender === 'male' ? 'ذكر' : 'أنثى'})`;
+                    }
+                } catch (e) { console.error('خطأ جلب بيانات المستخدم', e); }
                 loadRooms();
             } else {
                 currentUser = null; currentUserData = null;
                 authModal.classList.add('active');
                 lobbyScreen.classList.remove('active');
                 chatScreen.classList.remove('active');
+                hideTopbar();
+                detachSwipeListeners();
                 if(unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
             }
         });
@@ -399,6 +545,13 @@
             if (!container.parentElement) document.getElementById('chat-header').appendChild(container);
             container.appendChild(logoutBtn);
         })();
+
+        // 10. روابط الشريط العلوي (وظائف بدائية مؤقتة - يمكن توسيعها لاحقاً)
+        btnNavRooms.addEventListener('click', () => { hideTopbar(); lobbyScreen.classList.add('active'); chatScreen.classList.remove('active'); });
+        btnContacts.addEventListener('click', () => { hideTopbar(); alert('جهات الاتصال - ميزة قيد التطوير'); });
+        btnWallet.addEventListener('click', () => { hideTopbar(); alert('المحفظة - ميزة قيد التطوير'); });
+        btnSettings.addEventListener('click', () => { hideTopbar(); alert('إعدادات عامة - ميزة قيد التطوير'); });
+        btnProfile.addEventListener('click', () => { hideTopbar(); alert('إعدادات الملف الشخصي - ميزة قيد التطوير'); });
 
     </script>
 </body>
