@@ -3,154 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>syrchat - منصة الدردشة الاجتماعية</title>
-    
+    <title>syrchat - منصة الدردشة</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/auth.css">
+    <link rel="stylesheet" href="styles/lobby.css">
+    <link rel="stylesheet" href="styles/chat.css">
+    <link rel="stylesheet" href="styles/topbar.css">
     <script type="importmap">
         {
             "imports": {
                 "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-                "firebase/analytics": "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js",
                 "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
             }
         }
     </script>
-
-    <style>
-        /* === التنسيق العام === */
-        html,body { height: 100%; margin:0; padding:0; }
-        body { font-family: Tahoma, Verdana, Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        * { box-sizing: border-box; }
-
-        /* Modal */
-        .modal-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
-        .modal-overlay.active { display:flex; }
-        .modal-box { background:#fff; border-radius:8px; width:90%; max-width:420px; padding:18px; box-shadow:0 6px 24px rgba(0,0,0,0.2); }
-        .modal-header{ font-weight:bold; color:#0f3b82; text-align:center; margin-bottom:12px; }
-
-        /* App container */
-        #app-container { width: 100%; height: 100%; max-width: 1100px; background: #fff; display:flex; flex-direction:column; box-shadow:0 6px 30px rgba(0,0,0,0.12); position:relative; }
-
-        /* Lobby */
-        #lobby-screen{ display:none; flex:1; flex-direction:row; }
-        #lobby-screen.active{ display:flex; }
-        #sidebar{ width:300px; background:#eef7fb; padding:14px; border-left:1px solid #d0ecfb; overflow:auto; }
-        #main-lobby{ flex:1; padding:18px; display:flex; flex-direction:column; }
-        .lobby-title{ font-size:20px; color:#0f3b82; font-weight:bold; margin-bottom:8px; }
-        .lobby-welcome{ background:#e9f7ef; padding:12px; border-radius:6px; border:1px solid #d4eedf; margin-bottom:10px; }
-
-        /* Notifications */
-        #notification-area{ flex:1; background:#fff; border:1px solid #eee; border-radius:6px; padding:10px; overflow:auto; }
-        .notif-item{ padding:8px; border-radius:6px; background:#fafafa; border-left:4px solid #0f3b82; margin-bottom:8px; cursor:pointer; }
-
-        /* Chat screen full */
-        #chat-screen{ display:none; position:fixed; inset:0; background:#fff; z-index:800; flex-direction:column; }
-        #chat-screen.active{ display:flex; }
-        #chat-header{ background:#0f3b82; color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; z-index:850; }
-        #chat-messages{ flex:1; overflow:auto; padding:80px 16px 16px 16px; background:linear-gradient(#fff,#f3fbff); }
-        .msg-box{ padding:8px 12px; border-radius:12px; max-width:70%; background:#eef6fb; margin-bottom:8px; clear:both; }
-        .msg-box.me{ background:#dff3e9; margin-left:auto; }
-        .msg-user{ font-size:12px; color:#0f3b82; font-weight:bold; }
-        #chat-input-area{ padding:10px; display:flex; gap:8px; border-top:1px solid #eee; }
-        #chat-input-area .form-control{ flex:1; }
-        #msg-error{ color:#d9534f; font-size:12px; margin-top:6px; text-align:center; min-height:18px; }
-
-        /* Topbar */
-        #topbar{ position:fixed; top:0; left:0; right:0; height:110px; background:rgba(255,255,255,0.98); box-shadow:0 6px 20px rgba(0,0,0,0.12); transform:translateY(-140px); transition:transform 220ms ease; z-index:900; display:flex; flex-direction:column; align-items:center; }
-        #topbar.show{ transform:translateY(0); }
-        #topbar-handle{ position:absolute; top:-8px; left:50%; transform:translateX(-50%); width:60px; height:6px; background:rgba(0,0,0,0.12); border-radius:4px; cursor:pointer; }
-        #ticker{ width:100%; height:30px; background:#0f3b82; color:#fff; display:flex; align-items:center; padding:0 12px; overflow:hidden; }
-        #ticker span{ white-space:nowrap; animation:scroll 8s linear infinite; }
-        @keyframes scroll{ 0%{ transform:translateX(100%);} 100%{ transform:translateX(-100%);} }
-        .topbar-row{ display:flex; gap:12px; align-items:center; margin-top:8px; }
-        .topbar-btn{ background:transparent; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; color:#0f3b82; }
-        .topbar-btn svg{ width:28px; height:28px; }
-        .panel-container{ display:none; position:absolute; top:66px; right:12px; width:360px; max-height:420px; background:#fff; border:1px solid #eee; box-shadow:0 6px 18px rgba(0,0,0,0.12); border-radius:8px; padding:12px; overflow:auto; z-index:901; }
-        .panel-container.active{ display:block; }
-
-        /* private message color helper */
-        .level-bubble { padding:6px 10px; border-radius:8px; color:#fff; display:inline-block; }
-
-        /* small screens */
-        @media(max-width:700px){ #sidebar{ display:none; } #topbar{ height:120px; } }
-    </style>
 </head>
 <body>
-
     <!-- Auth Modal -->
     <div id="auth-modal" class="modal-overlay active">
         <div class="modal-box">
-            <div class="modal-header">syrchat — تسجيل الدخول</div>
+            <div class="modal-header">🎬 syrchat - تسجيل الدخول</div>
             <div class="form-group">
                 <label>البريد الإلكتروني</label>
-                <input id="email" class="form-control" type="email" placeholder="email@example.com">
+                <input id="email" class="form-control" type="email" placeholder="your@email.com">
             </div>
             <div class="form-group">
                 <label>كلمة المرور</label>
-                <input id="password" class="form-control" type="password" placeholder="كلمة المرور">
+                <input id="password" class="form-control" type="password" placeholder="••••••••">
             </div>
             <div id="auth-fields" style="display:none;">
-                <div class="form-group"><label>اسم المستخدم</label><input id="username" class="form-control" type="text"></div>
-                <div class="form-group"><label>الجنس</label><select id="gender" class="form-control"><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+                <div class="form-group">
+                    <label>اسم المستخدم</label>
+                    <input id="username" class="form-control" type="text" placeholder="اسمك في المنصة">
+                </div>
+                <div class="form-group">
+                    <label>الجنس</label>
+                    <select id="gender" class="form-control">
+                        <option value="male">ذكر</option>
+                        <option value="female">أنثى</option>
+                    </select>
+                </div>
             </div>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-                <button id="btn-login" class="btn-primary" style="flex:1">دخول</button>
-                <button id="btn-register" class="btn-primary" style="flex:1; background:#28a745">إنشاء حساب</button>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button id="btn-login" class="btn-primary" style="flex:1;">دخول</button>
+                <button id="btn-register" class="btn-primary success" style="flex:1;">إنشاء حساب</button>
             </div>
             <div id="auth-error" class="error-msg"></div>
         </div>
     </div>
 
+    <!-- Main App -->
     <div id="app-container">
+        <!-- Lobby -->
         <div id="lobby-screen" class="active">
             <div id="sidebar">
-                <div class="lobby-title">الغرف العامة</div>
+                <div class="lobby-title">🌐 الغرف العامة</div>
                 <div class="room-list" id="public-rooms"></div>
-                <hr>
-                <button id="btn-create-room" class="btn-primary" style="width:100%">+ إنشاء غرفة</button>
+                <button id="btn-create-room" class="btn-primary" style="width:100%; margin-top:12px;">+ إنشاء غرفة</button>
+                <div id="notification-area"></div>
             </div>
             <div id="main-lobby">
-                <div class="lobby-title">صالة syrchat</div>
-                <div class="lobby-welcome" id="welcome-msg">أهلاً بك! اختر غرفة من القائمة.</div>
-                <div id="notification-area"><div style="text-align:center;color:#666">لا توجد إشعارات بعد</div></div>
+                <div class="lobby-title">مرحباً بك في صالة syrchat 🎉</div>
+                <div class="lobby-welcome" id="welcome-msg">اختر غرفة للبدء</div>
+                <div id="lobby-content"></div>
             </div>
         </div>
 
-        <!-- Chat full screen -->
+        <!-- Chat Screen -->
         <div id="chat-screen">
-            <!-- Topbar (pull-down) -->
-            <div id="topbar" aria-hidden="true">
+            <div id="topbar-wrapper">
                 <div id="topbar-handle"></div>
-                <div id="ticker"><span>syrchat — مرحباً بكم في المنصة الاجتماعية</span></div>
-                <div class="topbar-row">
-                    <div class="topbar-btn" id="btn-nav-rooms"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zM13 21h8V11h-8v10zm0-18v6h8V3h-8z"/></svg><div style="font-size:12px">الغرف</div></div>
-                    <div class="topbar-btn" id="btn-contacts"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C13 14.17 8.33 13 6 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><div style="font-size:12px">جهات</div></div>
-                    <div class="topbar-btn" id="btn-wallet"><svg viewBox="0 0 24 24"><path d="M21 7H7V5c0-1.1.9-2 2-2h10v4zM3 7v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2z"/></svg><div style="font-size:12px">المحفظة</div></div>
-                    <div class="topbar-btn" id="btn-settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.007 7.007 0 0 0-1.6-.94l-.36-2.54A.5.5 0 0 0 13 2h-3a.5.5 0 0 0-.5.42l-.36 2.54c-.56.23-1.09.53-1.6.94l-2.39-.96a.5.5 0 0 0-.6.22L2.72 8.9a.5.5 0 0 0 .12.64L4.87 11.2c-.04.31-.06.63-.06.94s.02.63.06.94L2.81 14.66a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.22l2.39-.96c.51.41 1.04.72 1.6.94l.36 2.54c.05.27.28.46.5.46h3c.22 0 .45-.19.5-.46l.36-2.54c.56-.23 1.09-.53 1.6-.94l2.39.96c.25.1.54 0 .68-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg><div style="font-size:12px">الإعدادات</div></div>
-                    <div class="topbar-btn" id="btn-profile"><svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.2c-3.3 0-9.9 1.7-9.9 5v2.7h19.8V19.2c0-3.3-6.6-5-9.9-5z"/></svg><div style="font-size:12px">الملف</div></div>
+                <div id="topbar">
+                    <div id="ticker-bar">
+                        <span id="ticker-text">🎯 syrchat - منصة دردشة اجتماعية آمنة وممتعة</span>
+                    </div>
+                    <div class="topbar-buttons">
+                        <button class="topbar-btn" id="btn-rooms-panel">🏠 غرف</button>
+                        <button class="topbar-btn" id="btn-contacts-panel">👥 جهات</button>
+                        <button class="topbar-btn" id="btn-wallet-panel">💰 محفظة</button>
+                        <button class="topbar-btn" id="btn-settings-panel">⚙️ إعدادات</button>
+                        <button class="topbar-btn" id="btn-profile-panel">👤 ملف</button>
+                    </div>
                 </div>
-
-                <!-- panels -->
-                <div id="panel-rooms" class="panel-container"></div>
-                <div id="panel-contacts" class="panel-container"><div id="friend-list">لا يوجد أصدقاء</div></div>
-                <div id="panel-wallet" class="panel-container"><div>رصيدك: <span id="wallet-display">0</span></div><hr>
-                    <div style="margin-bottom:8px;"><label>نص الشريط</label><input id="bar-text-input" class="form-control" maxlength="90"></div>
-                    <div style="display:flex; gap:8px; margin-bottom:8px;"><div><label>لون النص</label><input id="bar-color" type="color" value="#000000"></div><div><label>لون الخلفية</label><input id="bar-bg-color" type="color" value="#ffffff"></div></div>
-                    <button id="btn-request-buy-bar" class="btn-primary" style="width:100%">طلب شراء شريط (طلب للمدير)</button>
-                    <h4 style="margin-top:10px">أشرطتي</h4><div id="my-bars-list"></div>
-                </div>
-                <div id="panel-settings" class="panel-container"><button id="btn-edit-profile" class="btn-primary" style="width:100%">تعديل الملف</button>
-                    <div id="admin-requests" style="margin-top:10px; display:none;"></div>
-                </div>
-
             </div>
 
             <div id="chat-header">
-                <div id="room-name">الغرفة العامة</div>
-                <div style="display:flex; gap:8px;"><button id="btn-back-lobby" class="btn-primary" style="background:#6c757d">عودة</button></div>
+                <div id="chat-header-title">الغرفة العامة</div>
+                <div style="display:flex; gap:8px;">
+                    <button id="btn-back-lobby" class="btn-primary secondary">← العودة</button>
+                </div>
             </div>
 
-            <div id="chat-messages" role="log" aria-live="polite"></div>
+            <div id="chat-messages"></div>
 
             <div id="chat-input-area">
                 <input id="message-input" class="form-control" placeholder="اكتب رسالتك...">
@@ -160,269 +105,18 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, where, updateDoc, arrayUnion, runTransaction, getDocs, increment } from "firebase/firestore";
+    <!-- Panels -->
+    <div id="panel-rooms" class="panel"></div>
+    <div id="panel-contacts" class="panel"></div>
+    <div id="panel-wallet" class="panel"></div>
+    <div id="panel-settings" class="panel"></div>
+    <div id="panel-profile" class="panel"></div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyD72ZLpPd2zWLqKjgW0t0nGbkKxcLBpl9Q",
-            authDomain: "syrchat-app.firebaseapp.com",
-            projectId: "syrchat-app",
-            storageBucket: "syrchat-app.firebasestorage.app",
-            messagingSenderId: "59613720320",
-            appId: "1:59613720320:web:07bdbb89ab94c7a42c4de5",
-            measurementId: "G-H207P3H9VM"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // DOM
-        const authModal = document.getElementById('auth-modal');
-        const authFields = document.getElementById('auth-fields');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const usernameInput = document.getElementById('username');
-        const genderInput = document.getElementById('gender');
-        const authError = document.getElementById('auth-error');
-        const btnLogin = document.getElementById('btn-login');
-        const btnRegister = document.getElementById('btn-register');
-
-        const lobbyScreen = document.getElementById('lobby-screen');
-        const chatScreen = document.getElementById('chat-screen');
-        const roomNameHeader = document.getElementById('room-name');
-        const welcomeMsg = document.getElementById('welcome-msg');
-
-        const publicRoomsList = document.getElementById('public-rooms');
-        const btnCreateRoom = document.getElementById('btn-create-room');
-        const btnBackLobby = document.getElementById('btn-back-lobby');
-
-        const chatMessages = document.getElementById('chat-messages');
-        const messageInput = document.getElementById('message-input');
-        const btnSend = document.getElementById('btn-send');
-        const msgError = document.getElementById('msg-error');
-
-        // topbar
-        const topbar = document.getElementById('topbar');
-        const topbarHandle = document.getElementById('topbar-handle');
-        const btnNavRooms = document.getElementById('btn-nav-rooms');
-        const btnContacts = document.getElementById('btn-contacts');
-        const btnWallet = document.getElementById('btn-wallet');
-        const btnSettings = document.getElementById('btn-settings');
-        const btnProfile = document.getElementById('btn-profile');
-        const panelRooms = document.getElementById('panel-rooms');
-        const panelContacts = document.getElementById('panel-contacts');
-        const panelWallet = document.getElementById('panel-wallet');
-        const panelSettings = document.getElementById('panel-settings');
-        const walletDisplay = document.getElementById('wallet-display');
-        const myBarsList = document.getElementById('my-bars-list');
-        const friendList = document.getElementById('friend-list');
-        const adminRequestsContainer = document.getElementById('admin-requests');
-
-        // inputs in wallet panel
-        const barTextInput = document.getElementById('bar-text-input');
-        const barColor = document.getElementById('bar-color');
-        const barBgColor = document.getElementById('bar-bg-color');
-        const btnRequestBuyBar = document.getElementById('btn-request-buy-bar');
-
-        // state
-        let currentUser = null;
-        let currentUserData = null;
-        let currentRoomId = null;
-        let unsubscribeMessages = null;
-        let unsubscribeNotifs = null;
-        let lastMessageTime = 0;
-        let topbarHideTimeout = null;
-        let roomModerationUnsub = null;
-        const userProfileCache = {};
-
-        // Levels config
-        const LEVELS = [
-            {min:800000, name:'أسطوري', male:'#0b3d91', female:'#6a1b9a'},
-            {min:400000, name:'مميز', male:'#0b64a6', female:'#9c27b0'},
-            {min:200000, name:'طويل المدى', male:'#1565c0', female:'#ab47bc'},
-            {min:100000, name:'غالي', male:'#1976d2', female:'#ec407a'},
-            {min:50000, name:'عزيز', male:'#1e88e5', female:'#ff7043'},
-            {min:1000, name:'هاوي', male:'#42a5f5', female:'#ffb6c1'},
-            {min:0, name:'مبتدئ', male:'#90caf9', female:'#ffdce6'}
-        ];
-
-        function getLevel(count){
-            for(const l of LEVELS){ if(count>=l.min) return l; }
-            return LEVELS[LEVELS.length-1];
-        }
-
-        function bubbleColorFor(level, gender){
-            // return color depending on gender: female -> use 'female' shade if present, male -> male
-            if(!level) return '#cccccc';
-            return gender === 'female' ? (level.female || level.male) : (level.male || level.female);
-        }
-
-        // Auth handlers
-        const showError = (msg) => { authError.textContent = msg; setTimeout(() => { if(authError.textContent===msg) authError.textContent=''; }, 3500); };
-        let isRegistering = false;
-        btnRegister.addEventListener('click', () => { isRegistering = !isRegistering; authFields.style.display = isRegistering ? 'block' : 'none'; btnLogin.style.display = isRegistering ? 'none' : 'block'; btnRegister.textContent = isRegistering ? 'تأكيد التسجيل' : 'إنشاء حساب'; });
-        btnLogin.addEventListener('click', () => { isRegistering = false; authFields.style.display = 'none'; btnLogin.style.display = 'block'; btnRegister.textContent = 'إنشاء حساب'; });
-
-        async function handleAuth(){
-            const email = emailInput.value.trim(); const pass = passwordInput.value.trim();
-            if(!email||!pass) return showError('املأ البريد و كلمة المرور');
-            try{
-                if(isRegistering){
-                    const user = (await createUserWithEmailAndPassword(auth,email,pass)).user;
-                    await setDoc(doc(db,'users',user.uid),{ email, username: usernameInput.value.trim()||'مستخدم', gender: genderInput.value||'male', role:'user', createdAt: serverTimestamp(), wallet:0, bars:[], friends:[], messageCount:0 });
-                    alert('تم إنشاء الحساب'); isRegistering=false; authFields.style.display='none';
-                } else {
-                    await signInWithEmailAndPassword(auth,email,pass);
-                }
-            }catch(err){ console.error(err); showError(err.code==='auth/email-already-in-use' ? 'البريد مستخدم سابقاً' : (err.message || 'حدث خطأ')); }
-        }
-        btnLogin.addEventListener('click', handleAuth); btnRegister.addEventListener('click', handleAuth);
-
-        // Auth state
-        onAuthStateChanged(auth, async (user)=>{
-            if(user){
-                currentUser = user; authModal.classList.remove('active'); lobbyScreen.classList.add('active');
-                attachSwipeListeners();
-                try{ const snap = await getDoc(doc(db,'users',user.uid)); if(snap.exists()){ currentUserData = snap.data(); if(typeof currentUserData.messageCount==='undefined') currentUserData.messageCount = 0; welcomeMsg.textContent = `أهلاً ${currentUserData.username}`; walletDisplay.textContent = currentUserData.wallet || 0; loadMyBars(); loadFriendsList(); } }catch(e){console.error(e)}
-                loadRooms(); loadNotifications();
-            } else {
-                currentUser=null; currentUserData=null; authModal.classList.add('active'); lobbyScreen.classList.remove('active'); chatScreen.classList.remove('active'); hideTopbar(); detachSwipeListeners(); if(unsubscribeMessages) unsubscribeMessages(); if(unsubscribeNotifs) unsubscribeNotifs(); if(roomModerationUnsub) roomModerationUnsub();
-            }
-        });
-
-        // Rooms
-        async function loadRooms(){
-            const q = query(collection(db,'rooms'), where('type','==','public'));
-            onSnapshot(q,(snapshot)=>{
-                publicRoomsList.innerHTML='';
-                if(snapshot.empty){ addDoc(collection(db,'rooms'),{ name:'عام', type:'public', createdAt: serverTimestamp(), memberCount:0 }); return; }
-                snapshot.forEach(d=>{ const r=d.data(); const div=document.createElement('div'); div.className='room-item'; const name=document.createElement('span'); name.textContent=r.name; const cnt=document.createElement('span'); cnt.style.fontSize='12px'; cnt.style.color='#666'; cnt.textContent=`${r.memberCount||0} عضو`; div.appendChild(name); div.appendChild(cnt); div.onclick=()=>joinRoom(d.id,r.name); publicRoomsList.appendChild(div); });
-            });
-        }
-        btnCreateRoom.onclick = ()=>{ const name=prompt('اسم الغرفة'); if(name) addDoc(collection(db,'rooms'),{ name, type:'public', createdAt: serverTimestamp(), createdBy: currentUser.uid }); };
-
-        // Notifications (simple)
-        function loadNotifications(){
-            const q = query(collection(db,'notifications'), orderBy('timestamp','desc'));
-            unsubscribeNotifs = onSnapshot(q,(snapshot)=>{ const area=document.getElementById('notification-area'); area.innerHTML=''; if(snapshot.empty){ area.innerHTML='<div style="text-align:center;color:#666">لا توجد إشعارات</div>'; return; } snapshot.forEach(d=>{ const data=d.data(); const item=document.createElement('div'); item.className='notif-item'; item.textContent=`${data.username || 'مستخدم'} انتقل إلى ${data.roomName}`; item.onclick = ()=> joinRoom(data.roomId,data.roomName); area.appendChild(item); }); });
-        }
-
-        // Room moderation subscription
-        let currentRoomModeration = { floodActive:false, expiresAt:0, required:1000 };
-        function subscribeRoomModeration(roomId){ if(roomModerationUnsub) roomModerationUnsub(); const modRef = doc(db,'rooms',roomId,'moderation','state'); roomModerationUnsub = onSnapshot(modRef,(snap)=>{ if(!snap.exists()){ currentRoomModeration = { floodActive:false, expiresAt:0, required:1000 }; return; } const data=snap.data(); currentRoomModeration = { floodActive: !!data.floodActive, expiresAt: data.expiresAt || 0, required: data.required || 1000 }; // auto-expire if time passed
-                if(currentRoomModeration.floodActive && Date.now() > currentRoomModeration.expiresAt){ // clear
-                    updateDoc(modRef, { floodActive:false }).catch(()=>{});
-                }
-        }); }
-
-        // Join room (safe rendering)
-        async function joinRoom(roomId,roomName){ if(unsubscribeMessages) unsubscribeMessages(); if(roomModerationUnsub) roomModerationUnsub(); currentRoomId=roomId; lobbyScreen.classList.remove('active'); chatScreen.classList.add('active'); roomNameHeader.textContent=roomName; hideTopbar();
-            // write notification
-            if(currentUserData){ await addDoc(collection(db,'notifications'),{ userId: currentUser.uid, username: currentUserData.username, roomId, roomName, timestamp: serverTimestamp() }); }
-            // subscribe mod
-            subscribeRoomModeration(roomId);
-            const q = query(collection(db,'rooms',roomId,'messages'), orderBy('timestamp','asc'));
-            unsubscribeMessages = onSnapshot(q, async (snapshot)=>{ chatMessages.innerHTML=''; for(const d of snapshot.docs){ const data=d.data(); const box=document.createElement('div'); box.className='msg-box'+(data.userId===currentUser?.uid?' me':''); const userEl=document.createElement('div'); userEl.className='msg-user'; userEl.textContent = data.username || 'زائر'; userEl.onclick = ()=> alert('معلومات: '+(data.username||'زائر')); const textEl=document.createElement('div'); textEl.textContent = data.text || ''; const timeEl=document.createElement('div'); timeEl.style.fontSize='11px'; timeEl.style.color='#888'; timeEl.textContent = data.timestamp ? new Date(data.timestamp.toMillis()).toLocaleTimeString() : ''; box.appendChild(userEl); box.appendChild(textEl); box.appendChild(timeEl);
-                        // fetch sender profile for coloring
-                        (async ()=>{ try{ if(data.userId){ let profile = userProfileCache[data.userId]; if(!profile){ const p = await getDoc(doc(db,'users',data.userId)); if(p.exists()) profile = p.data(); userProfileCache[data.userId]=profile; }
-                                    const lvl = getLevel(profile?.messageCount || 0); const bg = bubbleColorFor(lvl, profile?.gender || 'male'); box.style.background = bg; } }catch(e){ /* ignore */ } })();
-                        chatMessages.appendChild(box);
-            }
-            chatMessages.scrollTop = chatMessages.scrollHeight; }); }
-
-        btnBackLobby.onclick = ()=>{ if(unsubscribeMessages) unsubscribeMessages(); if(roomModerationUnsub) roomModerationUnsub(); chatScreen.classList.remove('active'); lobbyScreen.classList.add('active'); }
-
-        // Sending messages (throttle + safe + flood check + increment count)
-        btnSend.onclick = sendMessage; messageInput.addEventListener('keypress',(e)=>{ if(e.key==='Enter') sendMessage(); });
-        function showMsgError(t){ msgError.textContent = t; setTimeout(()=>{ if(msgError.textContent===t) msgError.textContent=''; },3000); }
-        async function sendMessage(){ const text = messageInput.value.trim(); if(!text || !currentRoomId) return; if(Date.now()-lastMessageTime < 1200){ return showMsgError('انتظر قليلاً قبل الإرسال'); }
-            // flood check
-            if(currentRoomModeration.floodActive){ const req = currentRoomModeration.required || 1000; const userCount = currentUserData?.messageCount || 0; if(userCount < req){ return showMsgError('الطوفان مفعل: يتطلب إرسال 1000 رسالة على الأقل للمشاركة'); } }
-            lastMessageTime = Date.now(); try{
-                await addDoc(collection(db,'rooms',currentRoomId,'messages'),{ text, userId: currentUser.uid, username: currentUserData?.username || 'مستخدم', timestamp: serverTimestamp() });
-                // increment user's message count
-                try{ await updateDoc(doc(db,'users',currentUser.uid), { messageCount: increment(1) }); // update local copy
-                    currentUserData.messageCount = (currentUserData.messageCount || 0) + 1;
-                }catch(e){ console.error('failed increment', e); }
-                messageInput.value='';
-            }catch(e){ console.error(e); showMsgError('خطأ بالإرسال'); }
-        }
-
-        // Topbar drag behavior (drag feedback + auto-hide)
-        let dragging=false, startY=0, topbarHeight=0, currentDelta=0;
-        function showTopbar(){ if(!topbar) return; topbar.classList.add('show'); topbar.style.transform='translateY(0)'; if(topbarHideTimeout) clearTimeout(topbarHideTimeout); topbarHideTimeout = setTimeout(()=>{ hideTopbar(); },3000); }
-        function hideTopbar(){ if(!topbar) return; topbar.classList.remove('show'); topbar.style.transform='translateY(-140px)'; if(topbarHideTimeout){ clearTimeout(topbarHideTimeout); topbarHideTimeout=null; } }
-
-        function onPointerDown(e){ const y = e.touches ? e.touches[0].clientY : e.clientY; if(y <= 60){ dragging=true; startY=y; topbarHeight = topbar.offsetHeight || 110; topbar.style.transition='none'; } }
-        function onPointerMove(e){ if(!dragging) return; const y = e.touches ? e.touches[0].clientY : e.clientY; currentDelta = Math.max(0, y - startY); const translate = Math.min(0, -topbarHeight + currentDelta); topbar.style.transform = `translateY(${translate}px)`; if(e.cancelable) e.preventDefault(); }
-        function onPointerUp(e){ if(!dragging) return; dragging=false; topbar.style.transition='transform 200ms ease'; if(currentDelta > 40){ showTopbar(); } else { hideTopbar(); } currentDelta=0; }
-
-        function attachSwipeListeners(){ window.addEventListener('touchstart', onPointerDown, {passive:false}); window.addEventListener('touchmove', onPointerMove, {passive:false}); window.addEventListener('touchend', onPointerUp); window.addEventListener('mousedown', onPointerDown); window.addEventListener('mousemove', onPointerMove); window.addEventListener('mouseup', onPointerUp); topbarHandle.addEventListener('click', ()=>{ showTopbar(); }); window.addEventListener('click',(e)=>{ if(e.clientY<=50 && chatScreen.classList.contains('active')) showTopbar(); }); }
-        function detachSwipeListeners(){ window.removeEventListener('touchstart', onPointerDown); window.removeEventListener('touchmove', onPointerMove); window.removeEventListener('touchend', onPointerUp); window.removeEventListener('mousedown', onPointerDown); window.removeEventListener('mousemove', onPointerMove); window.removeEventListener('mouseup', onPointerUp); }
-
-        // Panel toggles
-        function closeAllPanels(){ document.querySelectorAll('.panel-container').forEach(p=>p.classList.remove('active')); }
-        btnNavRooms.addEventListener('click', ()=>{ closeAllPanels(); panelRooms.classList.toggle('active'); renderRoomsPanel(); });
-        btnContacts.addEventListener('click', ()=>{ closeAllPanels(); panelContacts.classList.toggle('active'); loadFriendsList(); });
-        btnWallet.addEventListener('click', ()=>{ closeAllPanels(); panelWallet.classList.toggle('active'); loadMyBars(); });
-        btnSettings.addEventListener('click', ()=>{ closeAllPanels(); panelSettings.classList.toggle('active'); loadAdminRequestsIfAdmin(); });
-
-        // Render rooms panel with flood controls
-        async function renderRoomsPanel(){ panelRooms.innerHTML=''; const heading=document.createElement('div'); heading.textContent='الغرف المتاحة'; heading.style.fontWeight='bold'; heading.style.marginBottom='8px'; panelRooms.appendChild(heading);
-            const q = query(collection(db,'rooms'), where('type','==','public'));
-            const snap = await getDocs(q);
-            if(snap.empty){ const p=document.createElement('div'); p.textContent='لا توجد غرف'; panelRooms.appendChild(p); return; }
-            snap.forEach(async (d)=>{ const r=d.data(); const row=document.createElement('div'); row.style.padding='8px'; row.style.borderBottom='1px solid #f1f1f1'; const title=document.createElement('div'); title.textContent = r.name; title.style.fontWeight='bold'; row.appendChild(title);
-                    const joinBtn=document.createElement('button'); joinBtn.textContent='دخول'; joinBtn.className='btn-primary'; joinBtn.style.marginTop='6px'; joinBtn.onclick=()=>{ joinRoom(d.id,r.name); closeAllPanels(); };
-                    row.appendChild(joinBtn);
-                    // flood control if current user is room owner or moderator/admin
-                    let canModerate = false;
-                    if(currentUserData){ if(['admin','moderator'].includes(currentUserData.role)) canModerate=true; if(r.createdBy && r.createdBy===currentUser.uid) canModerate=true; }
-                    if(canModerate){ const floodBtn=document.createElement('button'); floodBtn.textContent='تفعيل الطوفان (ساعتان)'; floodBtn.style.marginLeft='8px'; floodBtn.className='btn-primary'; floodBtn.onclick = async ()=>{ const modRef = doc(db,'rooms',d.id,'moderation','state'); const expires = Date.now() + 2*60*60*1000; await setDoc(modRef, { floodActive:true, expiresAt: expires, required:1000, activatedBy: currentUser.uid, activatedAt: serverTimestamp() }); alert('تم تفعيل الطوفان لمدة ساعتين'); }; row.appendChild(floodBtn); }
-                    panelRooms.appendChild(row);
-            }); }
-
-        // Friends (basic)
-        async function loadFriendsList(){ if(!currentUser) return; const uref = doc(db,'users',currentUser.uid); try{ const snap = await getDoc(uref); const data = snap.data(); friendList.innerHTML=''; if(!data || !data.friends || data.friends.length===0){ friendList.textContent='لا يوجد أصدقاء'; return; } data.friends.forEach(f=>{ const el=document.createElement('div'); el.textContent = f; friendList.appendChild(el); }); }catch(e){ console.error(e); } }
-
-        // Bars
-        async function loadMyBars(){ if(!currentUserData) return; myBarsList.innerHTML=''; const bars = currentUserData.bars || []; if(bars.length===0){ myBarsList.textContent='لا توجد أشرطة'; return; } bars.forEach(b=>{ const el=document.createElement('div'); el.style.padding='6px'; el.style.marginBottom='6px'; el.style.background = b.bgColor || '#fff'; el.style.color = b.color || '#000'; el.textContent = b.text; myBarsList.appendChild(el); }); }
-
-        // Request purchase -> sends a manager request (do not deduct automatically)
-        btnRequestBuyBar.addEventListener('click', async ()=>{
-            const text = barTextInput.value.trim(); const color = barColor.value; const bg = barBgColor.value; if(!text) return alert('اكتب نص الشريط'); if(!currentUser) return alert('سجل الدخول');
-            try{ await addDoc(collection(db,'payment_requests'),{ userId: currentUser.uid, username: currentUserData?.username||'', type:'bar', details:{ text, color, bg }, status:'pending', createdAt: serverTimestamp() }); alert('تم إرسال طلب الشراء إلى المدير. سيتم التواصل معك عبر الرسائل الخاصة'); barTextInput.value=''; }catch(e){ alert('فشل ارسال الطلب'); }
-        });
-
-        // Admin: load pending requests
-        async function loadAdminRequests(){ adminRequestsContainer.innerHTML=''; const q = query(collection(db,'payment_requests'), where('status','==','pending'), orderBy('createdAt','asc'));
-            const snap = await getDocs(q);
-            if(snap.empty){ adminRequestsContainer.textContent='لا توجد طلبات'; return; }
-            snap.forEach(async d=>{ const r=d.data(); const row=document.createElement('div'); row.style.borderBottom='1px solid #eee'; row.style.padding='8px'; row.innerHTML = `<div><strong>${r.username}</strong> طلب شراء ${r.type}</div>`; const approve=document.createElement('button'); approve.textContent='الموافقة'; approve.className='btn-primary'; approve.style.marginRight='6px'; approve.onclick = async ()=>{ // process approval: deduct and add bar
-                        const userRef = doc(db,'users',r.userId);
-                        try{
-                            await runTransaction(db, async (t)=>{ const s = await t.get(userRef); if(!s.exists()) throw new Error('المستخدم غير موجود'); const wallet = s.data().wallet || 0; if(wallet < 1) throw new Error('رصيد غير كاف'); t.update(userRef, { wallet: wallet - 1 }); t.update(userRef, { bars: arrayUnion(r.details) }); t.update(doc(db,'payment_requests',d.id), { status:'approved', processedBy: currentUser.uid, processedAt: serverTimestamp() }); });
-                            alert('تمت الموافقة ومعالجة الطلب');
-                        }catch(err){ alert('فشل المعالجة: '+err.message); }
-                    };
-            const decline=document.createElement('button'); decline.textContent='رفض'; decline.className='btn-primary'; decline.style.background='#6c757d'; decline.onclick = async ()=>{ await updateDoc(doc(db,'payment_requests',d.id), { status:'declined', processedBy: currentUser.uid, processedAt: serverTimestamp() }); loadAdminRequests(); };
-            row.appendChild(approve); row.appendChild(decline); adminRequestsContainer.appendChild(row); }); }
-
-        function loadAdminRequestsIfAdmin(){ if(currentUserData && currentUserData.role==='admin'){ adminRequestsContainer.style.display='block'; loadAdminRequests(); } else { adminRequestsContainer.style.display='none'; } }
-
-        // Simple admin wallet top-up by username (not wired into UI yet)
-        async function adminAddWalletByUsername(username, amount){ if(!username) return; const q = query(collection(db,'users'), where('username','==',username)); const snap = await getDocs(q); if(snap.empty) return alert('لم يتم العثور'); const userId = snap.docs[0].id; const userRef = doc(db,'users',userId); try{ await runTransaction(db, async (t)=>{ const s = await t.get(userRef); const w = s.data().wallet || 0; t.update(userRef, { wallet: w + amount }); }); alert('تم الإضافة'); }catch(e){ alert('فشل: '+e.message); } }
-
-        // Logout button
-        (function addLogout(){ const c = document.querySelector('#chat-header div'); const btn = document.createElement('button'); btn.textContent='خروج'; btn.className='btn-primary'; btn.style.background='#dc3545'; btn.onclick = async ()=>{ try{ await signOut(auth); }catch(e){ console.error(e); } }; if(c) c.appendChild(btn); })();
-
-        // Helper: getDocs imported earlier
-
-    </script>
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/lobby.js"></script>
+    <script type="module" src="js/chat.js"></script>
+    <script type="module" src="js/topbar.js"></script>
+    <script type="module" src="js/panels.js"></script>
 </body>
 </html>

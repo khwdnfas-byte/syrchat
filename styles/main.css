@@ -1,0 +1,108 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    font-family: Tahoma, Verdana, Arial, sans-serif;
+    background: #f0f2f5;
+    overflow: hidden;
+}
+
+#app-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    position: relative;
+}
+
+/* Form Controls */
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    outline: none;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    border-color: #0f3b82;
+    box-shadow: 0 0 0 3px rgba(15,59,130,0.1);
+}
+
+/* Buttons */
+.btn-primary {
+    background: #0f3b82;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.btn-primary:hover {
+    background: #0a2a5c;
+}
+
+.btn-primary.success {
+    background: #28a745;
+}
+
+.btn-primary.success:hover {
+    background: #218838;
+}
+
+.btn-primary.secondary {
+    background: #6c757d;
+}
+
+.btn-primary.secondary:hover {
+    background: #5a6268;
+}
+
+.btn-primary.danger {
+    background: #dc3545;
+}
+
+.btn-primary.danger:hover {
+    background: #c82333;
+}
+
+/* Utilities */
+.error-msg {
+    color: #d9534f;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 18px;
+}
+
+@media(max-width:768px) {
+    body {
+        font-size: 14px;
+    }
+}
