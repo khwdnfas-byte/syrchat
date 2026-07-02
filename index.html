@@ -67,7 +67,7 @@
 </head>
 <body>
 
-    <!-- ===== 1. نافذة تسجيل الدخول (Modal) ===== -->
+    <!-- ===== 1. نافذة تسجيل الدخول (Moadal) ===== -->
     <div id="auth-modal" class="modal-overlay active">
         <div class="modal-box">
             <div class="modal-header">syrchat - تسجيل الدخول</div>
@@ -127,7 +127,9 @@
         <div id="chat-screen">
             <div id="chat-header">
                 <div id="room-name">الغرفة العامة</div>
-                <button id="btn-back-lobby" class="btn-primary" style="background:#6c757d;">عودة للصالة</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="btn-back-lobby" class="btn-primary" style="background:#6c757d;">عودة للصالة</button>
+                </div>
             </div>
             <div id="chat-messages"></div>
             <div id="chat-input-area">
@@ -239,6 +241,9 @@
         let currentRoomId = null;
         let unsubscribeMessages = null;
 
+        // متغير لمنع الإرسال السريع (مضاد سبام بسيط)
+        let lastMessageTime = 0;
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
@@ -265,14 +270,29 @@
         async function loadRooms() {
             // تحميل الغرف العامة
             const qPublic = query(collection(db, "rooms"), where("type", "==", "public"));
-            onSnapshot(qPublic, (snapshot) => {
+            onSnapshot(qPublic, async (snapshot) => {
                 publicRoomsList.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const room = doc.data();
+                if (snapshot.empty) {
+                    // إنشاء غرفة عامة افتراضية إذا لم توجد
+                    try {
+                        await addDoc(collection(db, "rooms"), {
+                            name: "عام",
+                            type: "public",
+                            createdBy: currentUser?.uid || null,
+                            createdAt: serverTimestamp(),
+                            memberCount: 0
+                        });
+                    } catch (err) {
+                        console.error('خطأ أثناء إنشاء الغرفة الافتراضية', err);
+                    }
+                    return;
+                }
+                snapshot.forEach(docSnap => {
+                    const room = docSnap.data();
                     const div = document.createElement('div');
                     div.className = 'room-item';
                     div.innerHTML = `<span>${room.name}</span> <span style="font-size:10px;color:#888;">${room.memberCount || 0} عضو</span>`;
-                    div.onclick = () => joinRoom(doc.id, room.name);
+                    div.onclick = () => joinRoom(docSnap.id, room.name);
                     publicRoomsList.appendChild(div);
                 });
             });
@@ -287,7 +307,7 @@
             }
         };
 
-        // 7. الدخول للغرفة
+        // 7. الدخول للغرفة (عرض الرسائل بأمان - منع XSS)
         function joinRoom(roomId, roomName) {
             if(unsubscribeMessages) unsubscribeMessages();
             currentRoomId = roomId;
@@ -299,16 +319,33 @@
             const q = query(collection(db, "rooms", roomId, "messages"), orderBy("timestamp", "asc"));
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
                 chatMessages.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const div = document.createElement('div');
-                    div.className = 'msg-box' + (data.userId === currentUser?.uid ? ' me' : '');
-                    div.innerHTML = `
-                        <span class="msg-user" onclick="alert('معلومات المستخدم: ${data.username || 'زائر'}')">${data.username || 'زائر'}</span>
-                        <span>${data.text}</span>
-                        <span style="font-size:10px;color:#888;float:left;">${data.timestamp ? new Date(data.timestamp.toMillis()).toLocaleTimeString() : ''}</span>
-                    `;
-                    chatMessages.appendChild(div);
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'msg-box' + (data.userId === currentUser?.uid ? ' me' : '');
+
+                    const userEl = document.createElement('span');
+                    userEl.className = 'msg-user';
+                    userEl.textContent = data.username || 'زائر';
+                    userEl.addEventListener('click', () => {
+                        alert('معلومات المستخدم: ' + (data.username || 'زائر'));
+                    });
+
+                    const textEl = document.createElement('div');
+                    textEl.textContent = data.text || '';
+
+                    const timeEl = document.createElement('span');
+                    timeEl.style.cssText = 'font-size:10px;color:#888;float:left;';
+                    if (data.timestamp && typeof data.timestamp.toMillis === 'function') {
+                        try {
+                            timeEl.textContent = new Date(data.timestamp.toMillis()).toLocaleTimeString();
+                        } catch (e) { timeEl.textContent = ''; }
+                    }
+
+                    wrapper.appendChild(userEl);
+                    wrapper.appendChild(textEl);
+                    wrapper.appendChild(timeEl);
+                    chatMessages.appendChild(wrapper);
                 });
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             });
@@ -320,18 +357,49 @@
             lobbyScreen.classList.add('active');
         };
 
-        // 8. إرسال الرسائل
+        // 8. إرسال الرسائل - مع منع سبام بسيط
         btnSend.onclick = sendMessage;
         messageInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
 
         async function sendMessage() {
             const text = messageInput.value.trim();
             if(!text || !currentRoomId) return;
-            await addDoc(collection(db, "rooms", currentRoomId, "messages"), {
-                text, userId: currentUser.uid, username: currentUserData?.username || 'مستخدم', timestamp: serverTimestamp()
-            });
-            messageInput.value = '';
+            const now = Date.now();
+            if (now - lastMessageTime < 1500) { // 1.5 ثانية بين الرسائل
+                showError('الرجاء الانتظار ثانية قبل إرسال رسالة أخرى');
+                return;
+            }
+            lastMessageTime = now;
+
+            try {
+                await addDoc(collection(db, "rooms", currentRoomId, "messages"), {
+                    text, userId: currentUser.uid, username: currentUserData?.username || 'مستخدم', timestamp: serverTimestamp()
+                });
+                messageInput.value = '';
+            } catch (err) {
+                console.error('خطأ إرسال الرسالة', err);
+                showError('حدث خطأ أثناء إرسال الرسالة');
+            }
         }
+
+        // 9. زر تسجيل الخروج
+        (function addLogoutButton(){
+            const headerControls = document.querySelector('#chat-header > div') || document.getElementById('chat-header');
+            const logoutBtn = document.createElement('button');
+            logoutBtn.textContent = 'تسجيل خروج';
+            logoutBtn.className = 'btn-primary';
+            logoutBtn.style.background = '#dc3545';
+            logoutBtn.addEventListener('click', async () => {
+                try { await signOut(auth); } catch (e) { console.error('خطأ تسجيل الخروج', e); }
+            });
+            // ضع الزر في الجانب الأيمن من الهيدر (مع الاحتفاظ بزر العودة)
+            const container = document.querySelector('#chat-header div') || document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '8px';
+            if (!container.parentElement) document.getElementById('chat-header').appendChild(container);
+            container.appendChild(logoutBtn);
+        })();
+
     </script>
 </body>
 </html>
