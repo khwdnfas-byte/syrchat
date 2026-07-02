@@ -79,18 +79,20 @@ async function joinRoom(roomId, roomName) {
     window.dispatchEvent(new CustomEvent('room-joined', { detail: { roomId, roomName } }));
 }
 
-btnCreateRoom.onclick = () => {
-    const name = prompt('اسم الغرفة الجديدة:');
-    if (name && currentUser) {
-        addDoc(collection(db, 'rooms'), {
-            name,
-            type: 'public',
-            createdAt: serverTimestamp(),
-            createdBy: currentUser.uid,
-            memberCount: 1
-        });
-    }
-};
+if (btnCreateRoom) {
+    btnCreateRoom.onclick = () => {
+        const name = prompt('اسم الغرفة الجديدة:');
+        if (name && currentUser) {
+            addDoc(collection(db, 'rooms'), {
+                name,
+                type: 'public',
+                createdAt: serverTimestamp(),
+                createdBy: currentUser.uid,
+                memberCount: 1
+            });
+        }
+    };
+}
 
 // Initialize on auth success
 window.addEventListener('auth-success', () => {

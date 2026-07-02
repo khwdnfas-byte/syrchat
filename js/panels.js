@@ -1,6 +1,6 @@
 import { currentUser, currentUserData, logout } from "./auth.js";
 import { db } from "./firebase-config.js";
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, setDoc, increment, runTransaction, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, setDoc, increment, runTransaction, arrayUnion, serverTimestamp, orderBy } from "firebase/firestore";
 
 const btnRoomsPanel = document.getElementById('btn-rooms-panel');
 const btnContactsPanel = document.getElementById('btn-contacts-panel');
@@ -22,35 +22,45 @@ function closePanels() {
     panelProfile.classList.remove('active');
 }
 
-btnRoomsPanel.addEventListener('click', () => {
-    closePanels();
-    panelRooms.classList.add('active');
-    renderRoomsPanel();
-});
+if (btnRoomsPanel) {
+    btnRoomsPanel.addEventListener('click', () => {
+        closePanels();
+        panelRooms.classList.add('active');
+        renderRoomsPanel();
+    });
+}
 
-btnContactsPanel.addEventListener('click', () => {
-    closePanels();
-    panelContacts.classList.add('active');
-    renderContactsPanel();
-});
+if (btnContactsPanel) {
+    btnContactsPanel.addEventListener('click', () => {
+        closePanels();
+        panelContacts.classList.add('active');
+        renderContactsPanel();
+    });
+}
 
-btnWalletPanel.addEventListener('click', () => {
-    closePanels();
-    panelWallet.classList.add('active');
-    renderWalletPanel();
-});
+if (btnWalletPanel) {
+    btnWalletPanel.addEventListener('click', () => {
+        closePanels();
+        panelWallet.classList.add('active');
+        renderWalletPanel();
+    });
+}
 
-btnSettingsPanel.addEventListener('click', () => {
-    closePanels();
-    panelSettings.classList.add('active');
-    renderSettingsPanel();
-});
+if (btnSettingsPanel) {
+    btnSettingsPanel.addEventListener('click', () => {
+        closePanels();
+        panelSettings.classList.add('active');
+        renderSettingsPanel();
+    });
+}
 
-btnProfilePanel.addEventListener('click', () => {
-    closePanels();
-    panelProfile.classList.add('active');
-    renderProfilePanel();
-});
+if (btnProfilePanel) {
+    btnProfilePanel.addEventListener('click', () => {
+        closePanels();
+        panelProfile.classList.add('active');
+        renderProfilePanel();
+    });
+}
 
 function renderRoomsPanel() {
     panelRooms.innerHTML = '<div class="panel-title">🌐 الغرف المتاحة</div>';
@@ -119,27 +129,32 @@ function renderWalletPanel() {
         myBarsDiv.innerHTML = '<div style="text-align:center; color:#999; font-size:12px;">لا توجد أشرطة</div>';
     }
 
-    document.getElementById('btn-request-bar').addEventListener('click', async () => {
-        const text = document.getElementById('bar-text').value.trim();
-        const color = document.getElementById('bar-color').value;
-        const bg = document.getElementById('bar-bg').value;
-        if (!text) return alert('اكتب نص الشريط');
+    const btnRequestBar = document.getElementById('btn-request-bar');
+    if (btnRequestBar) {
+        btnRequestBar.addEventListener('click', async () => {
+            const text = document.getElementById('bar-text').value.trim();
+            const color = document.getElementById('bar-color').value;
+            const bg = document.getElementById('bar-bg').value;
+            if (!text) return alert('اكتب نص الشريط');
 
-        try {
-            await addDoc(collection(db, 'payment_requests'), {
-                userId: currentUser.uid,
-                username: currentUserData?.username || '',
-                type: 'bar',
-                details: { text, color, bgColor: bg },
-                status: 'pending',
-                createdAt: serverTimestamp()
-            });
-            alert('✅ تم إرسال طلب الشراء إلى المدير');
-            document.getElementById('bar-text').value = '';
-        } catch (e) {
-            alert('❌ فشل إرسال الطلب');
-        }
-    });
+            try {
+                if (currentUser && currentUserData) {
+                    await addDoc(collection(db, 'payment_requests'), {
+                        userId: currentUser.uid,
+                        username: currentUserData?.username || '',
+                        type: 'bar',
+                        details: { text, color, bgColor: bg },
+                        status: 'pending',
+                        createdAt: serverTimestamp()
+                    });
+                    alert('✅ تم إرسال طلب الشراء إلى المدير');
+                    document.getElementById('bar-text').value = '';
+                }
+            } catch (e) {
+                alert('❌ فشل إرسال الطلب');
+            }
+        });
+    }
 }
 
 function renderSettingsPanel() {
@@ -170,17 +185,19 @@ function renderSettingsPanel() {
                 approveBtn.onclick = async () => {
                     const userRef = doc(db, 'users', req.userId);
                     try {
-                        await runTransaction(db, async (t) => {
-                            const snap = await t.get(userRef);
-                            if (!snap.exists()) throw new Error('مستخدم غير موجود');
-                            const wallet = snap.data().wallet || 0;
-                            if (wallet < 1) throw new Error('رصيد غير كاف');
-                            t.update(userRef, { wallet: wallet - 1 });
-                            t.update(userRef, { bars: arrayUnion(req.details) });
-                            t.update(doc(db, 'payment_requests', d.id), { status: 'approved', processedBy: currentUser.uid, processedAt: serverTimestamp() });
-                        });
-                        alert('✅ تم الموافقة');
-                        renderSettingsPanel();
+                        if (currentUser) {
+                            await runTransaction(db, async (t) => {
+                                const snap = await t.get(userRef);
+                                if (!snap.exists()) throw new Error('مستخدم غير موجود');
+                                const wallet = snap.data().wallet || 0;
+                                if (wallet < 1) throw new Error('رصيد غير كاف');
+                                t.update(userRef, { wallet: wallet - 1 });
+                                t.update(userRef, { bars: arrayUnion(req.details) });
+                                t.update(doc(db, 'payment_requests', d.id), { status: 'approved', processedBy: currentUser.uid, processedAt: serverTimestamp() });
+                            });
+                            alert('✅ تم الموافقة');
+                            renderSettingsPanel();
+                        }
                     } catch (err) {
                         alert('❌ ' + err.message);
                     }
@@ -191,8 +208,10 @@ function renderSettingsPanel() {
                 declineBtn.textContent = '✗ رفض';
                 declineBtn.style.fontSize = '12px';
                 declineBtn.onclick = async () => {
-                    await updateDoc(doc(db, 'payment_requests', d.id), { status: 'declined', processedBy: currentUser.uid, processedAt: serverTimestamp() });
-                    renderSettingsPanel();
+                    if (currentUser) {
+                        await updateDoc(doc(db, 'payment_requests', d.id), { status: 'declined', processedBy: currentUser.uid, processedAt: serverTimestamp() });
+                        renderSettingsPanel();
+                    }
                 };
 
                 item.appendChild(approveBtn);
@@ -234,5 +253,8 @@ function renderProfilePanel() {
     </div>
     <button id="btn-logout" class="btn-primary danger" style="width:100%; margin-top:12px;">🚪 تسجيل الخروج</button>`;
 
-    document.getElementById('btn-logout').addEventListener('click', logout);
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', logout);
+    }
 }
